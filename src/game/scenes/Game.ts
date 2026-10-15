@@ -89,6 +89,7 @@ export class Game extends Scene {
     let currentTurn = 0;
     let movementInProgress = false;
     let gameEnded = false;
+    let pendingWinnerId: number | undefined;
     let marblePositions: { x: number; y: number; alive: boolean; lion: boolean }[] = [];
     let draggedMarble: { x: number; y: number } | undefined;
     const startOverlay = this.add.container(0, 0).setDepth(1000);
@@ -180,6 +181,18 @@ export class Game extends Scene {
       homeButton.setVisible(true);
     };
     const wallCollisionAnimations = new Set<number>();
+    const eatingMarbles = new Set<number>();
+    const showVictoryIfReady = () => {
+      if (pendingWinnerId === undefined || eatingMarbles.size > 0 || gameEnded) {
+        return;
+      }
+      gameEnded = true;
+      movementInProgress = true;
+      draggedMarble = undefined;
+      dragGuideLine.setVisible(false);
+      victoryMessage.setText(`${pendingWinnerId}번 구슬이 최종 승리했습니다!`);
+      victoryOverlay.setVisible(true);
+    };
     const playWallCollisionAnimation = (marbleId: number, impactX: number, impactY: number) => {
       const img = marbleImages[marbleId];
       const label = marbleLabelTexts[marbleId];
@@ -231,6 +244,89 @@ export class Game extends Scene {
         },
       });
     };
+    const playEatingAnimation = (
+      eaterId: number,
+      eatenId: number,
+      eaterX: number,
+      eaterY: number,
+      eatenX: number,
+      eatenY: number
+    ) => {
+      const eaterImage = marbleImages[eaterId];
+      const eatenImage = marbleImages[eatenId];
+      const eatenLabel = marbleLabelTexts[eatenId];
+      if (!eaterImage || !eatenImage || !eatenLabel) {
+        return;
+      }
+
+      eatingMarbles.add(eatenId);
+      const eatenScaleX = eatenImage.scaleX;
+      const eatenScaleY = eatenImage.scaleY;
+      eatenImage.setPosition(eatenX, eatenY).setAlpha(1).clearTint();
+      eatenLabel.setPosition(eatenX - 13, eatenY - 17).setAlpha(1);
+      const eaterScaleX = eaterImage.scaleX;
+      const eaterScaleY = eaterImage.scaleY;
+      this.tweens.add({
+        targets: eaterImage,
+        scaleX: eaterScaleX * 1.2,
+        scaleY: eaterScaleY * 1.2,
+        duration: 90,
+        yoyo: true,
+        ease: "Quad.Out",
+      });
+      this.cameras.main.shake(160, 0.004);
+
+      for (let i = 0; i < 9; i += 1) {
+        const angle = (Math.PI * 2 * i) / 9;
+        const particle = this.add
+          .circle(
+            eatenX + Math.cos(angle) * 8,
+            eatenY + Math.sin(angle) * 8,
+            3 + (i % 3),
+            i % 2 === 0 ? 0xffd84d : 0xff8c32,
+            1
+          )
+          .setDepth(2);
+        this.tweens.add({
+          targets: particle,
+          x: eaterX + Math.cos(angle) * 18,
+          y: eaterY + Math.sin(angle) * 18,
+          scale: 0.15,
+          alpha: 0,
+          duration: 320,
+          ease: "Cubic.Out",
+          onComplete: () => particle.destroy(),
+        });
+      }
+
+      const animation = { progress: 0 };
+      this.tweens.add({
+        targets: animation,
+        progress: 1,
+        duration: 340,
+        ease: "Cubic.In",
+        onUpdate: () => {
+          const currentEaterX = eaterImage.x;
+          const currentEaterY = eaterImage.y;
+          eatenImage.setPosition(
+            eatenX + (currentEaterX - eatenX) * animation.progress,
+            eatenY + (currentEaterY - eatenY) * animation.progress
+          );
+          eatenLabel.setPosition(eatenImage.x - 13, eatenImage.y - 17);
+          const scale = 1 - animation.progress * 0.9;
+          eatenImage.setScale(eatenScaleX * scale, eatenScaleY * scale);
+          eatenLabel.setScale(scale);
+          eatenImage.setAlpha(1 - animation.progress);
+          eatenLabel.setAlpha(1 - animation.progress);
+        },
+        onComplete: () => {
+          eatenImage.clearTint().setAlpha(0).setScale(eatenScaleX, eatenScaleY);
+          eatenLabel.setAlpha(0).setScale(1);
+          eatingMarbles.delete(eatenId);
+          showVictoryIfReady();
+        },
+      });
+    };
     if (this.startImmediately) {
       startGame();
     }
@@ -268,10 +364,13 @@ export class Game extends Scene {
       args.wallCollisions.forEach(({ marbleId, x, y }) => {
         playWallCollisionAnimation(marbleId, x, y);
       });
+      args.eatenMarbles.forEach(({ eaterId, eatenId, eaterX, eaterY, eatenX, eatenY }) => {
+        playEatingAnimation(eaterId, eatenId, eaterX, eaterY, eatenX, eatenY);
+      });
       turnMarbleText.setText(`${args.turn}번 구슬`);
 
       args.marbles.forEach((marble, i) => {
-        if (wallCollisionAnimations.has(i)) {
+        if (wallCollisionAnimations.has(i) || eatingMarbles.has(i)) {
           return;
         }
         const myTurn = i == args.turn;
@@ -307,12 +406,8 @@ export class Game extends Scene {
       if (!gameEnded && args.state === "wait_move") {
         const survivors = args.marbles.filter((marble) => marble.alive);
         if (survivors.length === 1) {
-          gameEnded = true;
-          movementInProgress = true;
-          draggedMarble = undefined;
-          dragGuideLine.setVisible(false);
-          victoryMessage.setText(`${survivors[0].id}번 구슬이 최종 승리했습니다!`);
-          victoryOverlay.setVisible(true);
+          pendingWinnerId = survivors[0].id;
+          showVictoryIfReady();
         }
       }
     }, {

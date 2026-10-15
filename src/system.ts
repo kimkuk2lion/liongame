@@ -35,6 +35,14 @@ type RenderArgs = {
     x: number;
     y: number;
   }[];
+  eatenMarbles: {
+    eaterId: number;
+    eatenId: number;
+    eaterX: number;
+    eaterY: number;
+    eatenX: number;
+    eatenY: number;
+  }[];
 };
 
 type RenderFunction = (args: RenderArgs) => void;
@@ -62,6 +70,7 @@ export class System {
   private holes: Hole[] = HOLES;
   private state: State = "wait_move";
   private wallCollisions: RenderArgs["wallCollisions"] = [];
+  private eatenMarbles: RenderArgs["eatenMarbles"] = [];
   debugInfo: string;
 
   constructor(
@@ -263,6 +272,14 @@ export class System {
     const normalY = dy / distance;
 
     if (first.id === activeMarble.id && first.lion) {
+      this.eatenMarbles.push({
+        eaterId: first.id,
+        eatenId: second.id,
+        eaterX: first.x,
+        eaterY: first.y,
+        eatenX: second.x,
+        eatenY: second.y,
+      });
       second.alive = false;
       second.inHole = false;
       velocityX[second.id] = 0;
@@ -272,6 +289,14 @@ export class System {
       return;
     }
     if (second.id === activeMarble.id && second.lion) {
+      this.eatenMarbles.push({
+        eaterId: second.id,
+        eatenId: first.id,
+        eaterX: second.x,
+        eaterY: second.y,
+        eatenX: first.x,
+        eatenY: first.y,
+      });
       first.alive = false;
       first.inHole = false;
       velocityX[first.id] = 0;
@@ -331,8 +356,10 @@ export class System {
       marbles: this.marbles,
       state: this.state,
       wallCollisions: this.wallCollisions,
+      eatenMarbles: this.eatenMarbles,
     });
     this.wallCollisions = [];
+    this.eatenMarbles = [];
   }
 }
 
