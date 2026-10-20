@@ -1,0 +1,5 @@
+export const GAME_WIDTH = 720;
+export const GAME_HEIGHT = 1300;
+export const MARBLE_SIZE = 34;
+export const MOVE_RANDOM = 100;
+export const MOVE_DURATION = 900;
