@@ -172,8 +172,20 @@ export class Game extends Scene {
         color: "#fffdf0",
         fontSize: "32px",
         fontStyle: "bold",
+        align: "center",
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setWordWrapWidth(440, true);
+    const victoryWinnerColor = this.add
+      .circle(-45, 43, 18, 0xffffff)
+      .setStrokeStyle(3, 0xfffdf0);
+    const victoryWinnerColorLabel = this.add
+      .text(-17, 43, "승리 색상", {
+        color: "#fffdf0",
+        fontSize: "20px",
+        fontStyle: "bold",
+      })
+      .setOrigin(0, 0.5);
     const restartButton = this.add.rectangle(0, 115, 220, 64, 0x4d8c50);
     const restartLabel = this.add
       .text(restartButton.x, restartButton.y, "다시 시작", {
@@ -193,6 +205,8 @@ export class Game extends Scene {
         victoryPanel,
         victoryTitle,
         victoryWinnerText,
+        victoryWinnerColor,
+        victoryWinnerColorLabel,
         restartButton,
         restartLabel,
       ])
@@ -214,7 +228,16 @@ export class Game extends Scene {
       movementInProgress = true;
       draggedMarble = undefined;
       dragGuideLine.setVisible(false);
-      victoryWinnerText.setText(`${pendingWinnerId}번 구슬 · ${this.playerNames[pendingWinnerId]} 승리!`);
+      victoryWinnerColor.setFillStyle(this.playerColors[pendingWinnerId] ?? 0xffffff);
+      victoryWinnerText.setText(`${pendingWinnerId + 1}번 구슬 · ${this.playerNames[pendingWinnerId]} 승리!`);
+      let winnerFontSize = 32;
+      while (
+        (victoryWinnerText.width > 440 || victoryWinnerText.height > 82) &&
+        winnerFontSize > 14
+      ) {
+        winnerFontSize -= 1;
+        victoryWinnerText.setFontSize(winnerFontSize);
+      }
       victoryOverlay.setVisible(true);
       victoryContent.setVisible(true);
       this.tweens.add({
@@ -377,7 +400,7 @@ export class Game extends Scene {
       args.eatenMarbles.forEach(({ eaterId, eatenId, eaterX, eaterY, eatenX, eatenY }) => {
         playEatingAnimation(eaterId, eatenId, eaterX, eaterY, eatenX, eatenY);
       });
-      turnMarbleText.setText(`${args.turn}번 · ${this.playerNames[args.turn]}`);
+      turnMarbleText.setText(`${args.turn + 1}번 · ${this.playerNames[args.turn]}`);
 
       args.marbles.forEach((marble, i) => {
         if (eatingMarbles.has(i)) {
@@ -403,7 +426,7 @@ export class Game extends Scene {
         const txt = marbleLabelTexts[i];
         txt.setX(marble.x - 13);
         txt.setY(marble.y - 17);
-        txt.setText(`${marble.id}`);
+        txt.setText(`${marble.id + 1}`);
         txt.setAlpha(marble.alive && !marble.lion ? (myTurn ? 1 : 0.3) : 0);
         const lionEmoji = lionEmojiTexts[i];
         lionEmoji.setPosition(marble.x, marble.y);

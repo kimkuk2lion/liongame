@@ -21,6 +21,13 @@ export const DEFAULT_PLAYER_COLORS = [
   PLAYER_COLOR_OPTIONS[3].value,
 ];
 
+function colorLabelTextColor(color: number): string {
+  const red = (color >> 16) & 0xff;
+  const green = (color >> 8) & 0xff;
+  const blue = color & 0xff;
+  return red * 0.299 + green * 0.587 + blue * 0.114 > 150 ? "#263226" : "#fffdf0";
+}
+
 export function normalizePlayerNames(value: unknown): string[] {
   return DEFAULT_PLAYER_NAMES.map((defaultName, index) => {
     const candidate = Array.isArray(value) ? value[index] : undefined;
@@ -86,7 +93,7 @@ export class Start extends Scene {
       .strokeRoundedRect(52, 190, GAME_WIDTH - 104, 900, 30)
       .setDepth(-1);
     this.add
-      .text(GAME_WIDTH / 2, 290, "LION MARBLE", {
+      .text(GAME_WIDTH / 2, 290, "LION GAME", {
         color: "#ffd84d",
         fontSize: "58px",
         fontStyle: "bold",
@@ -101,14 +108,14 @@ export class Start extends Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(218, 440, "플레이어 이름", {
+      .text(236, 462, "플레이어 이름", {
         color: "#ffd84d",
         fontSize: "24px",
         fontStyle: "bold",
       })
       .setOrigin(0.5);
     this.add
-      .text(520, 440, "색상 선택", {
+      .text(520, 462, "색상 선택", {
         color: "#ffd84d",
         fontSize: "24px",
         fontStyle: "bold",
@@ -116,24 +123,148 @@ export class Start extends Scene {
       .setOrigin(0.5);
 
     const canvas = this.game.canvas;
+    const inputMeasureContext = document.createElement("canvas").getContext("2d");
+    if (inputMeasureContext) {
+      inputMeasureContext.font = "bold 20px sans-serif";
+    }
     const inputs: HTMLInputElement[] = [];
     const listeners: { input: HTMLInputElement; type: string; listener: EventListener }[] = [];
     const composing = new WeakSet<HTMLInputElement>();
     const inputPositions = [535, 635, 735, 835];
     const playerColors = [...this.playerColors];
+    const selectedColorButtons: Phaser.GameObjects.Rectangle[] = [];
     const selectedColorLabels: Phaser.GameObjects.Text[] = [];
-    const colorButtons: Phaser.GameObjects.Arc[][] = [];
     const colorSelectionMessage = this.add
-      .text(GAME_WIDTH / 2, 930, "", {
-        color: "#ffb4a9",
+      .text(GAME_WIDTH / 2, 930, "색상 버튼을 누르고 마우스 휠로 색상을 선택하세요.", {
+        color: "#fffdf0",
         fontSize: "16px",
         fontStyle: "bold",
       })
       .setOrigin(0.5);
+    const palette = this.add.container(0, 0).setDepth(20).setVisible(false);
+    const palettePanel = this.add.graphics();
+    palettePanel
+      .fillStyle(0x30281d, 0.98)
+      .fillRoundedRect(0, 0, 244, 144, 14)
+      .lineStyle(2, 0xffd84d, 1)
+      .strokeRoundedRect(0, 0, 244, 144, 14);
+    const paletteRows = PLAYER_COLOR_OPTIONS.slice(0, 4).map(() => {
+      const background = this.add
+        .rectangle(122, 22, 228, 28, 0x30281d)
+        .setStrokeStyle(1, 0x766b52)
+        .setInteractive({ useHandCursor: true });
+      const swatch = this.add.circle(22, 22, 9, 0xffffff).setStrokeStyle(1, 0xffffff);
+      const label = this.add
+        .text(42, 22, "", {
+          color: "#fffdf0",
+          fontSize: "16px",
+          fontStyle: "bold",
+        })
+        .setOrigin(0, 0.5);
+      return { background, swatch, label };
+    });
+    palette.add([
+      palettePanel,
+      ...paletteRows.flatMap(({ background, swatch, label }, index) => {
+        const rowY = 22 + index * 32;
+        background.setY(rowY);
+        swatch.setY(rowY);
+        label.setY(rowY);
+        return [background, swatch, label];
+      }),
+    ]);
+    let activePlayerIndex: number | undefined;
+    let paletteStartIndex = 0;
+    const paletteVisibleCount = paletteRows.length;
+    const closePalette = () => {
+      activePlayerIndex = undefined;
+      palette.setVisible(false);
+    };
+    const updatePaletteRows = () => {
+      if (activePlayerIndex === undefined) {
+        return;
+      }
+      paletteRows.forEach(({ background, swatch, label }, rowIndex) => {
+        const colorIndex = paletteStartIndex + rowIndex;
+        const option = PLAYER_COLOR_OPTIONS[colorIndex];
+        if (!option) {
+          background.setVisible(false);
+          swatch.setVisible(false);
+          label.setVisible(false);
+          return;
+        }
+        const selected = playerColors[activePlayerIndex] === option.value;
+        const unavailable = playerColors.some(
+          (color, playerIndex) => playerIndex !== activePlayerIndex && color === option.value
+        );
+        background
+          .setVisible(true)
+          .setFillStyle(selected ? 0x4d8c50 : 0x30281d, 1)
+          .setStrokeStyle(selected ? 2 : 1, selected ? 0xffd84d : 0x766b52)
+          .setAlpha(unavailable && !selected ? 0.35 : 1);
+        swatch
+          .setVisible(true)
+          .setFillStyle(option.value, 1)
+          .setStrokeStyle(selected ? 2 : 1, selected ? 0xffd84d : 0xffffff)
+          .setAlpha(unavailable && !selected ? 0.35 : 1);
+        label
+          .setVisible(true)
+          .setText(option.name)
+          .setAlpha(unavailable && !selected ? 0.35 : 1);
+      });
+    };
+
+    paletteRows.forEach(({ background }, rowIndex) => {
+      background.on("pointerup", () => {
+        if (activePlayerIndex === undefined) {
+          return;
+        }
+        const option = PLAYER_COLOR_OPTIONS[paletteStartIndex + rowIndex];
+        if (!option) {
+          return;
+        }
+        const playerIndex = activePlayerIndex;
+        if (playerColors.some((color, assignedIndex) => assignedIndex !== playerIndex && color === option.value)) {
+          colorSelectionMessage.setText("이미 다른 플레이어가 선택한 색상입니다.").setColor("#ffb4a9");
+          return;
+        }
+        playerColors[playerIndex] = option.value;
+        selectedColorButtons[playerIndex].setFillStyle(option.value, 1);
+        selectedColorLabels[playerIndex]
+          .setText(option.name)
+          .setColor(colorLabelTextColor(option.value));
+        colorSelectionMessage.setText("색상이 선택되었습니다.").setColor("#fffdf0");
+        closePalette();
+      });
+    });
+    const onPaletteWheel = (
+      pointer: Phaser.Input.Pointer,
+      _gameObjects: Phaser.GameObjects.GameObject[],
+      _deltaX: number,
+      deltaY: number
+    ) => {
+      if (
+        activePlayerIndex === undefined ||
+        pointer.x < palette.x ||
+        pointer.x > palette.x + 244 ||
+        pointer.y < palette.y ||
+        pointer.y > palette.y + 144
+      ) {
+        return;
+      }
+      const maxStartIndex = PLAYER_COLOR_OPTIONS.length - paletteVisibleCount;
+      paletteStartIndex = Phaser.Math.Clamp(
+        paletteStartIndex + Math.sign(deltaY),
+        0,
+        maxStartIndex
+      );
+      updatePaletteRows();
+    };
+    this.input.on("wheel", onPaletteWheel);
 
     DEFAULT_PLAYER_NAMES.forEach((defaultName, index) => {
       this.add
-        .text(60, inputPositions[index] + 24, `${index}번`, {
+        .text(78, inputPositions[index] + 24, `${index + 1}번`, {
           color: "#fffdf0",
           fontSize: "24px",
           fontStyle: "bold",
@@ -144,7 +275,7 @@ export class Start extends Scene {
       input.type = "text";
       input.value = this.playerNames[index] ?? defaultName;
       input.autocomplete = "off";
-      input.setAttribute("aria-label", `${index}번 플레이어 이름`);
+      input.setAttribute("aria-label", `${index + 1}번 플레이어 이름`);
       input.style.position = "fixed";
       input.style.zIndex = "10000";
       input.style.boxSizing = "border-box";
@@ -154,67 +285,57 @@ export class Start extends Scene {
       input.style.background = "#fffdf0";
       input.style.color = "#263226";
       input.style.font = "bold 20px sans-serif";
+      input.style.textAlign = "center";
       input.style.outline = "none";
       input.style.pointerEvents = "auto";
       document.body.appendChild(input);
       inputs.push(input);
 
-      const selectedPreview = this.add.circle(348, inputPositions[index] + 19, 13, playerColors[index]);
-      selectedPreview.setStrokeStyle(2, 0xffd84d);
-      const selectedLabel = this.add
-        .text(348, inputPositions[index] + 43, `#${playerColors[index].toString(16).toUpperCase().padStart(6, "0")}`, {
-          color: "#fffdf0",
-          fontSize: "10px",
-          fontStyle: "bold",
-        })
-        .setOrigin(0.5);
-      selectedColorLabels.push(selectedLabel);
-
-      const rowColorButtons: Phaser.GameObjects.Arc[] = [];
-      PLAYER_COLOR_OPTIONS.forEach((option, colorIndex) => {
-        const colorButton = this.add
-          .circle(376 + colorIndex * 31, inputPositions[index] + 24, 11, option.value)
-          .setStrokeStyle(option.value === playerColors[index] ? 3 : 1, option.value === playerColors[index] ? 0xffd84d : 0xffffff)
-          .setInteractive({ useHandCursor: true });
-        colorButton
-          .setData("colorIndex", colorIndex)
-          .setData("colorName", option.name)
-          .setData("colorHex", `#${option.value.toString(16).toUpperCase().padStart(6, "0")}`);
-        colorButton.on("pointerup", () => {
-          const selectedColor = option.value;
-          if (playerColors.some((color, playerIndex) => playerIndex !== index && color === selectedColor)) {
-            colorSelectionMessage.setText("이미 다른 플레이어가 선택한 색상입니다.");
+      const initialColor = playerColors[index];
+      const selectedColorButton = this.add
+        .rectangle(520, inputPositions[index] + 24, 220, 48, initialColor)
+        .setStrokeStyle(2, 0xb28b35)
+        .setInteractive({ useHandCursor: true })
+        .on("pointerup", () => {
+          if (activePlayerIndex === index) {
+            closePalette();
             return;
           }
-          playerColors[index] = selectedColor;
-          colorSelectionMessage.setText("");
-          selectedPreview.setFillStyle(selectedColor, 1);
-          selectedLabel.setText(`#${selectedColor.toString(16).toUpperCase().padStart(6, "0")}`);
-          colorButtons.forEach((buttons, playerIndex) => {
-            buttons.forEach((button, buttonIndex) => {
-              const color = PLAYER_COLOR_OPTIONS[buttonIndex].value;
-              const selected = playerColors[playerIndex] === color;
-              const unavailable = playerColors.some(
-                (assigned, assignedIndex) => assignedIndex !== playerIndex && assigned === color
-              );
-              button.setStrokeStyle(selected ? 3 : 1, selected ? 0xffd84d : 0xffffff);
-              button.setAlpha(unavailable && !selected ? 0.25 : 1);
-            });
-          });
+          activePlayerIndex = index;
+          paletteStartIndex = Math.max(
+            0,
+            PLAYER_COLOR_OPTIONS.findIndex(({ value }) => value === playerColors[index]) - 1
+          );
+          const paletteY = inputPositions[index] + 50;
+          const buttonTop = inputPositions[index];
+          const paletteTop =
+            paletteY + 144 <= 930 ? paletteY : buttonTop - 144 - 6;
+          palette.setPosition(398, paletteTop).setVisible(true);
+          colorSelectionMessage.setText("색상 버튼을 누르고 마우스 휠로 색상을 선택하세요.").setColor("#fffdf0");
+          updatePaletteRows();
         });
-        rowColorButtons.push(colorButton);
-      });
-      colorButtons.push(rowColorButtons);
+      selectedColorButtons.push(selectedColorButton);
+      selectedColorLabels.push(
+        this.add
+          .text(520, inputPositions[index] + 24, PLAYER_COLOR_OPTIONS.find(({ value }) => value === initialColor)?.name ?? "", {
+            color: colorLabelTextColor(initialColor),
+            fontSize: "20px",
+            fontStyle: "bold",
+          })
+          .setOrigin(0.5)
+      );
 
       const inputListener: EventListener = () => {
         if (!composing.has(input)) {
           input.value = Array.from(input.value).slice(0, 12).join("");
         }
+        layoutInputs();
       };
       const compositionStartListener: EventListener = () => composing.add(input);
       const compositionEndListener: EventListener = () => {
         composing.delete(input);
         input.value = Array.from(input.value).slice(0, 12).join("");
+        layoutInputs();
       };
       const keyDownListener: EventListener = (event) => event.stopPropagation();
       for (const [type, listener] of [
@@ -233,26 +354,23 @@ export class Start extends Scene {
       const scaleX = bounds.width / GAME_WIDTH;
       const scaleY = bounds.height / GAME_HEIGHT;
       inputs.forEach((input, index) => {
-        input.style.left = `${bounds.left + 108 * scaleX}px`;
+        input.style.left = `${bounds.left + 126 * scaleX}px`;
         input.style.top = `${bounds.top + inputPositions[index] * scaleY}px`;
         input.style.width = `${220 * scaleX}px`;
         input.style.height = `${48 * scaleY}px`;
-        input.style.fontSize = `${20 * scaleY}px`;
+        input.style.padding = `0 ${16 * scaleX}px`;
+        const textWidth =
+          inputMeasureContext?.measureText(input.value).width ?? Array.from(input.value).length * 20;
+        const availableWidth = 220 * scaleX - 32 * scaleX - 4;
+        const fontSize = Math.min(20 * scaleY, (20 * availableWidth) / textWidth);
+        input.style.fontSize = `${fontSize}px`;
       });
     };
-    colorButtons.forEach((buttons, playerIndex) => {
-      buttons.forEach((button, buttonIndex) => {
-        const color = PLAYER_COLOR_OPTIONS[buttonIndex].value;
-        const unavailable = playerColors.some(
-          (assigned, assignedIndex) => assignedIndex !== playerIndex && assigned === color
-        );
-        button.setAlpha(unavailable && playerColors[playerIndex] !== color ? 0.25 : 1);
-      });
-    });
     const cleanup = () => {
       this.scale.off("resize", layoutInputs);
       window.removeEventListener("resize", layoutInputs);
       window.removeEventListener("scroll", layoutInputs);
+      this.input.off("wheel", onPaletteWheel);
       listeners.forEach(({ input, type, listener }) => input.removeEventListener(type, listener));
       inputs.forEach((input) => input.remove());
     };
