@@ -71,15 +71,20 @@ export class Start extends Scene {
 
   create() {
     const startButton = this.add
-      .rectangle(GAME_WIDTH / 2, 1010, 300, 86, 0x4d8c50)
-      .setStrokeStyle(3, 0xffd84d)
+      .rectangle(GAME_WIDTH / 2, 1010, 300, 86, 0xffd84d)
+      .setStrokeStyle(3, 0xc99a24)
       .setInteractive({ useHandCursor: true })
       .setDepth(2);
+    startButton
+      .on("pointerover", () => startButton.setFillStyle(0xffe680).setStrokeStyle(3, 0xffd84d))
+      .on("pointerout", () => startButton.setFillStyle(0xffd84d).setStrokeStyle(3, 0xc99a24));
     const startLabel = this.add
       .text(GAME_WIDTH / 2, 1010, "게임 시작", {
-        color: "#ffffff",
+        color: "#3b261b",
         fontSize: "34px",
         fontStyle: "bold",
+        fontFamily: "Malgun Gothic, Arial, sans-serif",
+        padding: { top: 12, bottom: 12 },
       })
       .setOrigin(0.5)
       .setDepth(3);
@@ -105,6 +110,8 @@ export class Start extends Scene {
         color: "#fffdf0",
         fontSize: "30px",
         fontStyle: "bold",
+        fontFamily: "Malgun Gothic, Arial, sans-serif",
+        padding: { top: 12, bottom: 12 },
       })
       .setOrigin(0.5);
     this.add
@@ -139,6 +146,8 @@ export class Start extends Scene {
         color: "#fffdf0",
         fontSize: "16px",
         fontStyle: "bold",
+        fontFamily: "Malgun Gothic, Arial, sans-serif",
+        padding: { top: 8, bottom: 8 },
       })
       .setOrigin(0.5);
     const palette = this.add.container(0, 0).setDepth(20).setVisible(false);

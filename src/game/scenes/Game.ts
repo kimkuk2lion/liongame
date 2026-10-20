@@ -36,6 +36,7 @@ export class Game extends Scene {
 
   create() {
     const marbleImages: Phaser.GameObjects.Image[] = [];
+    const marbleHighlights: Phaser.GameObjects.Arc[] = [];
     const holeImages: Phaser.GameObjects.Image[] = [];
     const marbleLabelTexts: Phaser.GameObjects.Text[] = [];
     const lionEmojiTexts: Phaser.GameObjects.Text[] = [];
@@ -43,24 +44,27 @@ export class Game extends Scene {
       .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x171512)
       .setDepth(-100);
     this.add
-      .rectangle(GAME_WIDTH / 2, 700, GAME_WIDTH - 16, 1184, 0x3b261b)
+      .rectangle(GAME_WIDTH / 2, 700, GAME_WIDTH - 16, 1184, 0x2b1a12)
       .setDepth(-99);
+    this.add
+      .rectangle(GAME_WIDTH / 2, 700, GAME_WIDTH - 24, 1176, 0x754a2b)
+      .setDepth(-98);
     this.add
       .rectangle(GAME_WIDTH / 2, 700, GAME_WIDTH - 36, 1168, 0x145c3a)
       .setStrokeStyle(4, 0x0b3d28)
-      .setDepth(-98);
+      .setDepth(-97);
     const turnPanelShadow = this.add.graphics().setDepth(3);
-    turnPanelShadow.fillStyle(0x263226, 0.2).fillRoundedRect(22, 24, 540, 72, 18);
+    turnPanelShadow.fillStyle(0x2b1a12, 0.2).fillRoundedRect(22, 22, 560, 72, 18);
     const turnPanel = this.add.graphics().setDepth(4);
     turnPanel
-      .fillStyle(0x365b38, 1)
-      .fillRoundedRect(18, 18, 540, 72, 18)
+      .fillStyle(0x754a2b, 1)
+      .fillRoundedRect(18, 18, 560, 72, 18)
       .fillStyle(0xfffdf0, 1)
-      .fillRoundedRect(22, 22, 532, 64, 14)
-      .lineStyle(2, 0x87977b, 1)
-      .strokeRoundedRect(22, 22, 532, 64, 14);
+      .fillRoundedRect(22, 22, 552, 64, 14)
+      .lineStyle(2, 0xd4a747, 1)
+      .strokeRoundedRect(22, 22, 552, 64, 14);
     this.add
-      .text(142, 54, "현재 차례:", {
+      .text(132, 54, "현재 차례:", {
         color: "#64745b",
         fontSize: "24px",
         fontStyle: "bold",
@@ -68,7 +72,7 @@ export class Game extends Scene {
       .setOrigin(0.5)
       .setDepth(5);
     const turnMarbleText = this.add
-      .text(375, 54, "", {
+      .text(397, 54, "", {
         color: "#263d28",
         fontSize: "25px",
         fontStyle: "bold",
@@ -88,26 +92,35 @@ export class Game extends Scene {
       .setVisible(false);
     const homeButton = this.add.graphics().setDepth(100).setVisible(false);
     homeButton
-      .fillStyle(0x263226, 0.2)
-      .fillRoundedRect(GAME_WIDTH - 72, 24, 58, 58, 14)
+      .fillStyle(0x2b1a12, 0.2)
+      .fillRoundedRect(GAME_WIDTH - 86, 22, 72, 72, 18)
       .fillStyle(0xfffdf0, 1)
-      .fillRoundedRect(GAME_WIDTH - 76, 18, 58, 58, 14)
-      .lineStyle(2, 0x87977b, 1)
-      .strokeRoundedRect(GAME_WIDTH - 76, 18, 58, 58, 14)
-      .lineStyle(3, 0x365b38, 1)
+      .fillRoundedRect(GAME_WIDTH - 90, 18, 72, 72, 18)
+      .lineStyle(2, 0xd4a747, 1)
+      .strokeRoundedRect(GAME_WIDTH - 90, 18, 72, 72, 18)
+      .lineStyle(3, 0x754a2b, 1)
       .beginPath()
-      .moveTo(GAME_WIDTH - 64, 45)
-      .lineTo(GAME_WIDTH - 47, 31)
-      .lineTo(GAME_WIDTH - 30, 45)
+      .moveTo(GAME_WIDTH - 71, 48)
+      .lineTo(GAME_WIDTH - 54, 34)
+      .lineTo(GAME_WIDTH - 37, 48)
       .strokePath()
-      .strokeRoundedRect(GAME_WIDTH - 59, 42, 24, 20, 3)
-      .lineBetween(GAME_WIDTH - 51, 62, GAME_WIDTH - 51, 52)
-      .lineBetween(GAME_WIDTH - 45, 62, GAME_WIDTH - 45, 52)
-      .lineBetween(GAME_WIDTH - 51, 52, GAME_WIDTH - 45, 52);
+      .strokeRoundedRect(GAME_WIDTH - 66, 45, 24, 20, 3)
+      .lineBetween(GAME_WIDTH - 58, 65, GAME_WIDTH - 58, 55)
+      .lineBetween(GAME_WIDTH - 52, 65, GAME_WIDTH - 52, 55)
+      .lineBetween(GAME_WIDTH - 58, 55, GAME_WIDTH - 52, 55);
     const guideLine = this.add.line(0, 0, 0, 0, 0, 0, 0xff0000, 0.3);
     guideLine.setDepth(99).setLineWidth(20, 1);
-    const dragGuideLine = this.add.line(0, 0, 0, 0, 0, 0, 0xffd84d, 1);
-    dragGuideLine.setDepth(200).setLineWidth(4, 1).setVisible(false);
+    const dragGuideLine = this.add.graphics().setDepth(200).setVisible(false);
+    const dragGuideDirection = this.add.circle(0, 0, 5, 0xffed9a, 0.95)
+      .setStrokeStyle(2, 0x9b6b19, 0.9)
+      .setDepth(201)
+      .setVisible(false);
+    const updateDragGuide = (startX: number, startY: number, endX: number, endY: number) => {
+      dragGuideLine.clear();
+      dragGuideLine.lineStyle(3, 0xffd84d, 0.9);
+      dragGuideLine.lineBetween(startX, startY, endX, endY);
+      dragGuideDirection.setPosition(endX, endY);
+    };
 
     let init = false;
     let started = false;
@@ -172,7 +185,9 @@ export class Game extends Scene {
         color: "#fffdf0",
         fontSize: "32px",
         fontStyle: "bold",
+        fontFamily: "Malgun Gothic, Arial, sans-serif",
         align: "center",
+        padding: { top: 20, bottom: 20 },
       })
       .setOrigin(0.5)
       .setWordWrapWidth(440, true);
@@ -184,6 +199,8 @@ export class Game extends Scene {
         color: "#fffdf0",
         fontSize: "20px",
         fontStyle: "bold",
+        fontFamily: "Malgun Gothic, Arial, sans-serif",
+        padding: { top: 20, bottom: 20 },
       })
       .setOrigin(0, 0.5);
     const restartButton = this.add.rectangle(0, 115, 220, 64, 0x4d8c50);
@@ -256,8 +273,10 @@ export class Game extends Scene {
       eatenY: number
     ) => {
       const eaterImage = marbleImages[eaterId];
+      const eaterHighlight = marbleHighlights[eaterId];
       const eaterLionEmoji = lionEmojiTexts[eaterId];
       const eatenImage = marbleImages[eatenId];
+      const eatenHighlight = marbleHighlights[eatenId];
       const eatenLabel = marbleLabelTexts[eatenId];
       const eatenLionEmoji = lionEmojiTexts[eatenId];
       if (!eaterImage || !eatenImage || !eatenLabel) {
@@ -272,6 +291,11 @@ export class Game extends Scene {
         .setPosition(eatenX, eatenY)
         .setAlpha(1)
         .setTintFill(marbleTint(eatenId, marblePositions[eatenId]?.lion ?? false, this.playerColors));
+      eatenHighlight
+        ?.setPosition(eatenX - 7, eatenY - 8)
+        .setVisible(true)
+        .setAlpha(0.45)
+        .setScale(1);
       eatenLabel.setPosition(eatenX - 13, eatenY - 17).setAlpha(1);
       const eaterScaleX = eaterImage.scaleX;
       const eaterScaleY = eaterImage.scaleY;
@@ -283,6 +307,15 @@ export class Game extends Scene {
         yoyo: true,
         ease: "Quad.Out",
       });
+      if (eaterHighlight) {
+        this.tweens.add({
+          targets: eaterHighlight,
+          scale: 1.2,
+          duration: 90,
+          yoyo: true,
+          ease: "Quad.Out",
+        });
+      }
       if (eaterLionEmoji?.visible) {
         this.tweens.add({
           targets: eaterLionEmoji,
@@ -330,15 +363,19 @@ export class Game extends Scene {
             eatenX + (currentEaterX - eatenX) * animation.progress,
             eatenY + (currentEaterY - eatenY) * animation.progress
           );
+          eatenHighlight?.setPosition(eatenImage.x - 7, eatenImage.y - 8);
           eatenLabel.setPosition(eatenImage.x - 13, eatenImage.y - 17);
           const scale = 1 - animation.progress * 0.9;
           eatenImage.setScale(eatenScaleX * scale, eatenScaleY * scale);
+          eatenHighlight?.setScale(scale);
           eatenLabel.setScale(scale);
           eatenImage.setAlpha(1 - animation.progress);
+          eatenHighlight?.setAlpha(0.45 * (1 - animation.progress));
           eatenLabel.setAlpha(1 - animation.progress);
         },
         onComplete: () => {
           eatenImage.clearTint().setAlpha(0).setScale(eatenScaleX, eatenScaleY);
+          eatenHighlight?.setAlpha(0).setScale(1);
           eatenLabel.setAlpha(0).setScale(1);
           eatingMarbles.delete(eatenId);
           showVictoryIfReady();
@@ -370,6 +407,12 @@ export class Game extends Scene {
               .setDisplaySize(MARBLE_SIZE, MARBLE_SIZE)
               .setDepth(1)
           );
+          marbleHighlights.push(
+            this.add
+              .circle(0, 0, 4, 0xffffff, 0.45)
+              .setDepth(1.5)
+              .setVisible(false)
+          );
           marbleLabelTexts.push(
             this.add
               .text(0, 0, "asdjflkasdjfl", {
@@ -400,7 +443,7 @@ export class Game extends Scene {
       args.eatenMarbles.forEach(({ eaterId, eatenId, eaterX, eaterY, eatenX, eatenY }) => {
         playEatingAnimation(eaterId, eatenId, eaterX, eaterY, eatenX, eatenY);
       });
-      turnMarbleText.setText(`${args.turn + 1}번 · ${this.playerNames[args.turn]}`);
+      turnMarbleText.setText(`${args.turn + 1}번  ·  ${this.playerNames[args.turn]}`);
 
       args.marbles.forEach((marble, i) => {
         if (eatingMarbles.has(i)) {
@@ -423,6 +466,9 @@ export class Game extends Scene {
           .setTexture(marble.lion ? "marble_red" : "marble_green")
           .setTintFill(marbleTint(marble.id, marble.lion, this.playerColors))
           .setAlpha(marble.alive ? 1 : 0);
+        marbleHighlights[i]
+          .setPosition(marble.x - 7, marble.y - 8)
+          .setVisible(marble.alive);
         const txt = marbleLabelTexts[i];
         txt.setX(marble.x - 13);
         txt.setY(marble.y - 17);
@@ -457,10 +503,10 @@ export class Game extends Scene {
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (
-        pointer.x >= GAME_WIDTH - 76 &&
+        pointer.x >= GAME_WIDTH - 90 &&
         pointer.x <= GAME_WIDTH - 18 &&
         pointer.y >= 18 &&
-        pointer.y <= 76
+        pointer.y <= 90
       ) {
         this.scene.start("Start", {
           playerNames: this.playerNames,
@@ -498,11 +544,13 @@ export class Game extends Scene {
       }
       draggedMarble = { x: marble.x, y: marble.y };
       guideLine.setVisible(false);
-      dragGuideLine.setTo(marble.x, marble.y, pointer.x, pointer.y).setVisible(true);
+      updateDragGuide(marble.x, marble.y, pointer.x, pointer.y);
+      dragGuideLine.setVisible(true);
+      dragGuideDirection.setVisible(true);
     });
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       if (started && draggedMarble) {
-        dragGuideLine.setTo(draggedMarble.x, draggedMarble.y, pointer.x, pointer.y);
+        updateDragGuide(draggedMarble.x, draggedMarble.y, pointer.x, pointer.y);
       }
     });
     this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
@@ -513,6 +561,7 @@ export class Game extends Scene {
       const marble = draggedMarble;
       draggedMarble = undefined;
       dragGuideLine.setVisible(false);
+      dragGuideDirection.setVisible(false);
       guideLine.setVisible(true);
 
       const dragX = pointer.x - marble.x;
